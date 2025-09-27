@@ -26,9 +26,9 @@ def parse_args():
     return parser.parse_args()
 
 
-# file_name:anon_6_6_300_0.3_bi.json
+
 def get_traffic_volume(file_name, run_cnt):
-    scale = run_cnt / 3600  # run_cnt > traffic_time, no exact scale，一般是1。
+    scale = run_cnt / 3600  
     if "synthetic" in file_name:
         sta = file_name.rfind("-") + 1
         print(file_name, int(int(file_name[sta:-4]) * scale))
@@ -36,7 +36,7 @@ def get_traffic_volume(file_name, run_cnt):
     elif "cross" in file_name:
         sta = file_name.find("equal_") + len("equal_")
         end = file_name.find(".xml")
-        return int(int(file_name[sta:end]) * scale * 4)  # lane_num = 4
+        return int(int(file_name[sta:end]) * scale * 4)  
 
 
 def get_metrics(duration_list, queue_length_list, min_duration, min_duration_id, min_queue_length, min_queue_length_id,
@@ -200,8 +200,7 @@ def performance_at_min_duration_round_plot(performance_at_min_duration_round, fi
 
 # 对结果进行展示的函数
 def summary_detail_test(memo, total_summary):
-    # each_round_train_duration
-    # memo:initial,但是这里的memo应该是传入0515_afternoon....json.../这种文件
+ 
     performance_duration = {}
     performance_at_min_duration_round = {}
 
@@ -211,29 +210,28 @@ def summary_detail_test(memo, total_summary):
         if ".xml" not in traffic_file and ".json" not in traffic_file:
             continue
 
-        #if "cross.2phases_rou01_equal_700.xml_12_11_08_16_00" != traffic_file:
-        #    continue
+   
         print(traffic_file)  # anon_6_6....json...
 
-        min_queue_length = min_duration = min_duration2 = float('inf')  # 表示正无穷
+        min_queue_length = min_duration = min_duration2 = float('inf')  
         min_queue_length_id = min_duration_ind = 0
 
-        # 读取实验的环境配置文件
+      
         exp_conf = open(os.path.join(records_dir, traffic_file, "exp.conf"), 'r')
         dic_exp_conf = json.load(exp_conf)
         print(dic_exp_conf)
 
-        # 读取交通虚拟配置文件
+      
         traffic_env_conf = open(os.path.join(records_dir, traffic_file, "traffic_env.conf"), 'r')
         dic_traffic_env_conf = json.load(traffic_env_conf)
         run_counts = dic_exp_conf["RUN_COUNTS"]  # 3600
         num_rounds = dic_exp_conf["NUM_ROUNDS"]  # 100
         time_interval = 24  #初始120
         num_seg = run_counts//time_interval  # 30
-        num_intersection = dic_traffic_env_conf['NUM_INTERSECTIONS']  # 36
+        num_intersection = dic_traffic_env_conf['NUM_INTERSECTIONS']  
 
 
-        traffic_vol = get_traffic_volume(dic_exp_conf["TRAFFIC_FILE"][0], run_counts)  # 文件名对不上，所以应该是没有结果
+        traffic_vol = get_traffic_volume(dic_exp_conf["TRAFFIC_FILE"][0], run_counts) 
         nan_thres = 120
 
         duration_each_round_list = []
@@ -244,12 +242,12 @@ def summary_detail_test(memo, total_summary):
 
         train_round_dir = os.path.join(records_dir, traffic_file, "test_round")
         try:
-            round_files = os.listdir(train_round_dir) # 获取 train_round_dir 目录中的所有文件和子目录的名称
+            round_files = os.listdir(train_round_dir)
         except:
             print("no test round in {}".format(traffic_file))
             continue
-        round_files = [f for f in round_files if "round" in f]  # 几个round_i
-        round_files.sort(key=lambda x: int(x[6:])) # 根据第六个元素后对round_files进行排序
+        round_files = [f for f in round_files if "round" in f] 
+        round_files.sort(key=lambda x: int(x[6:])) 
 
         round_summary = {}
         for round in round_files:
@@ -258,7 +256,7 @@ def summary_detail_test(memo, total_summary):
             df_vehicle_all = []
             queue_length_each_round = []
 
-            list_duration_seg = [float('inf')] * num_seg  # 一个容量为30的列表
+            list_duration_seg = [float('inf')] * num_seg 
             list_queue_length_seg = [float('inf')] * num_seg
             list_queue_length_id_seg = [0] * num_seg
             list_duration_id_seg = [0] * num_seg
@@ -268,24 +266,24 @@ def summary_detail_test(memo, total_summary):
 
                     round_dir = os.path.join(train_round_dir, round)
 
-                    # summary items (queue_length) from pickle(计算每个路口每round的平均车队长度)，
+                
                     f = open(os.path.join(round_dir, "inter_{0}.pkl".format(inter_index)), "rb")
                     print(f)
-                    samples = pkl.load(f)  # 获取路口i的样本, dim(360,),每条包含action:dim(1),time:dim(1),state:dim(20)
+                    samples = pkl.load(f)  
                     queue_length_each_inter_each_round = 0
                     for sample in samples:
                         queue_length_each_inter_each_round += sum(sample['state']['lane_num_vehicle_been_stopped_thres1'])
                     queue_length_each_inter_each_round = queue_length_each_inter_each_round//len(samples)
                     f.close()
 
-                    # summary items (duration) from csv,(计算每个路口每轮的travel_time)
+              
                     df_vehicle_inter = pd.read_csv(os.path.join(round_dir, "vehicle_inter_{0}.csv".format(inter_index)),
                                                      sep=',', header=0, dtype={0: str, 1: float, 2: float},
-                                                     names=["vehicle_id", "enter_time", "leave_time"])  # 将csv表格读取出来，然后获取每辆车的进入时间和离开时间
+                                                     names=["vehicle_id", "enter_time", "leave_time"]) 
                     df_vehicle_inter['leave_time_origin'] = df_vehicle_inter['leave_time']
-                    df_vehicle_inter['leave_time'].fillna(run_counts,inplace=True)  # 没有值的直接填充时间3600
+                    df_vehicle_inter['leave_time'].fillna(run_counts,inplace=True)  
                     df_vehicle_inter['duration'] = df_vehicle_inter["leave_time"].values - df_vehicle_inter["enter_time"].values
-                    ave_duration = df_vehicle_inter['duration'].mean(skipna=True)  # 求取平均等待时间
+                    ave_duration = df_vehicle_inter['duration'].mean(skipna=True)  
                     print("------------- inter_index: {0}\tave_duration: {1}\tave_queue_length:{2}"
                           .format(inter_index, ave_duration, queue_length_each_inter_each_round))
 
@@ -313,8 +311,8 @@ def summary_detail_test(memo, total_summary):
                     #         if min_duration2 > ave_duration2 and ave_duration2 > 24:
                     #             min_duration2 = ave_duration2
                     #             min_duration_ind2 = int(round[6:])
-                    df_vehicle_all.append(df_vehicle_inter)  # 存储着36个路口的enter_time,leave_time，duration，vehicle_time
-                    queue_length_each_round.append(queue_length_each_inter_each_round)  # 存储着36个路口的平均车辆数？
+                    df_vehicle_all.append(df_vehicle_inter)  
+                    queue_length_each_round.append(queue_length_each_inter_each_round) 
 
                 except:
                     queue_length_each_round.append(NAN_LABEL)
@@ -325,32 +323,31 @@ def summary_detail_test(memo, total_summary):
                 print("====================================EMPTY")
                 continue
 
-            df_vehicle_all = pd.concat(df_vehicle_all)  # 将36个路口的信息拼接
-            vehicle_duration = df_vehicle_all.groupby(by=['vehicle_id'])['duration'].sum()  # id相同的车辆的等待时间求和合并
-            ave_duration = vehicle_duration.mean()  # 求所有车辆的平均等待时间
-            ave_queue_length = np.mean(queue_length_each_round)  # 求36个路口的平均车辆数
-
+            df_vehicle_all = pd.concat(df_vehicle_all)  
+            vehicle_duration = df_vehicle_all.groupby(by=['vehicle_id'])['duration'].sum()  
+            ave_duration = vehicle_duration.mean()  
+            ave_queue_length = np.mean(queue_length_each_round)  
             duration_each_round_list.append(ave_duration)
             queue_length_each_round_list.append(ave_queue_length)
 
 
-            num_of_vehicle_in.append(len(df_vehicle_all['vehicle_id'].unique()))  # 进入的车辆数
-            num_of_vehicle_out.append(len(df_vehicle_all.dropna()['vehicle_id'].unique()))  # 驶出的车辆数，也就是删除了NAN的剩余车辆数
+            num_of_vehicle_in.append(len(df_vehicle_all['vehicle_id'].unique()))  
+            num_of_vehicle_out.append(len(df_vehicle_all.dropna()['vehicle_id'].unique()))  
 
             print("==== round: {0}\tave_duration: {1}\tave_queue_length_per_intersection:{2}\t"
                   "num_of_vehicle_in:{3}\tnum_of_vehicle_out:{4}"
                   .format(round, ave_duration,ave_queue_length,num_of_vehicle_in[-1],num_of_vehicle_out[-1]))
-            # 输出的是当前轮次、36个路口的总的平均等待时间、36个路口平均每个路口的车队长度、进入路网的车辆数、驶出路网的车辆数。
-            duration_flow = vehicle_duration.reset_index()  # 重置索引，现在索引只剩下id、duration_time
+           
+            duration_flow = vehicle_duration.reset_index() 
 
-            duration_flow['direction'] = duration_flow['vehicle_id'].apply(lambda x:x.split('_')[1])  # 增加了direction列，元素值是id的_的第二个值
-            duration_flow_ave = duration_flow.groupby(by=['direction'])['duration'].mean()  # 同一个direction进行求平均
+            duration_flow['direction'] = duration_flow['vehicle_id'].apply(lambda x:x.split('_')[1])  
+            duration_flow_ave = duration_flow.groupby(by=['direction'])['duration'].mean() 
             print(duration_flow_ave)
 
             # print(real_traffic_vol, traffic_vol, traffic_vol - real_traffic_vol, nan_num)
             if min_queue_length > ave_queue_length:
-                min_queue_length = np.mean(queue_length_each_round)  # 其实也就是将ave的值赋给，min
-                min_queue_length_id = int(round[6:])  # 得到round的索引
+                min_queue_length = np.mean(queue_length_each_round) 
+                min_queue_length_id = int(round[6:])  
             #
             # valid_flag = json.load(open(os.path.join(round_dir, "valid_flag.json")))
             # if valid_flag['0']:  # temporary for one intersection
@@ -359,16 +356,16 @@ def summary_detail_test(memo, total_summary):
             #         min_duration_ind = int(round[6:])
 
 
-            #### This is for long time
+          
 
             if num_seg > 1:
                 for i, interval in enumerate(range(0, run_counts, time_interval)):
                     did = df_vehicle_all[(df_vehicle_all["enter_time"]< interval+time_interval) &
-                                         (df_vehicle_all["enter_time"].values > interval)]  # 找到在这个时间段进入路口的车辆信息
+                                         (df_vehicle_all["enter_time"].values > interval)]  
                     #vehicle_in_seg = sum([int(x) for x in (df_vehicle_inter_0["enter_time"][did].values > 0)])
                     #vehicle_out_seg = sum([int(x) for x in (df_vehicle_inter_0["leave_time"][did].values > 0)])
 
-                    vehicle_duration_seg = did.groupby(by=['vehicle_id'])['duration'].sum()  # 相同的车辆进行求和
+                    vehicle_duration_seg = did.groupby(by=['vehicle_id'])['duration'].sum() 
                     ave_duration_seg = vehicle_duration_seg[vehicle_duration_seg>10].mean()
                     # print(traffic_file, round, i, ave_duration)
                     # real_traffic_vol_seg = 0
@@ -380,7 +377,7 @@ def summary_detail_test(memo, total_summary):
                     #         nan_num_seg += 1
 
                     # print(real_traffic_vol, traffic_vol, traffic_vol - real_traffic_vol, nan_num)
-                    nan_num_seg = did['leave_time_origin'].isna().sum()  # 计算有多少个非法值
+                    nan_num_seg = did['leave_time_origin'].isna().sum()  
 
                     if nan_num_seg < nan_thres:
                         list_duration_seg[i] = ave_duration_seg
@@ -525,7 +522,7 @@ def summary_detail_baseline(memo):
 
 
                 df_vehicle.append(df_vehicle_inter_0)
-                print(df_vehicle_inter_0.groupby(['flow_id'])['duration'].mean()) # mean for every intersection
+                print(df_vehicle_inter_0.groupby(['flow_id'])['duration'].mean()) 
 
             df_vehicle = pd.concat(df_vehicle,axis=0)
 
