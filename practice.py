@@ -8,10 +8,8 @@ import numpy as np
 import torch.nn as nn
 import torch.nn.functional as F
 
-# adj(36,5)变成(4x36,2)
 def get_edge_index(pre_adj, num_neighoor):
-    # 这里不使用for循环
-    # 首先获取第一列的元素
+
     adj = np.array([])
 
     pre_adj = np.array(pre_adj)
@@ -35,3 +33,4 @@ if __name__ == '__main__':
     num_neighoor = 5
     adj = get_edge_index(pre_adj,num_neighoor)
     print(adj)
+
