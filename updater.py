@@ -10,18 +10,18 @@ import traceback
 import random
 import numpy as np
 
-# 用于模型的更新。
+
 class Updater:
-    # 初始化信息
+  
     def __init__(self, cnt_round, dic_agent_conf, dic_exp_conf, dic_traffic_env_conf, dic_path, best_round=None, bar_round=None):
 
-        self.cnt_round = cnt_round  # cnt_round表示当前训练的轮数
-        self.dic_path = dic_path  # 一些文件路径
+        self.cnt_round = cnt_round  
+        self.dic_path = dic_path 
         self.dic_exp_conf = dic_exp_conf
         self.dic_traffic_env_conf = dic_traffic_env_conf
         self.dic_agent_conf = dic_agent_conf
-        self.agents = []  # 智能体数量，每个元素表示一个交叉口的智能体信息。
-        self.sample_set_list = []  # 样本设置列表
+        self.agents = []  
+        self.sample_set_list = []  
         self.sample_indexes = None
 
 
@@ -31,8 +31,8 @@ class Updater:
                               path_to_log = self.path_to_log,
                               path_to_work_directory = self.dic_path["PATH_TO_WORK_DIRECTORY"],
                               dic_traffic_env_conf = self.dic_traffic_env_conf)        
-        env_tmp.reset()  # 虚拟环境的重启
-        # 每个智能体都进行初始化
+        env_tmp.reset() 
+       
         for i in range(dic_traffic_env_conf['NUM_AGENTS']):
             agent_name = self.dic_exp_conf["MODEL_NAME"]
             if agent_name == 'CoLight_Signal':
@@ -47,27 +47,26 @@ class Updater:
                     self.dic_path, self.cnt_round, intersection_id=str(i))
             self.agents.append(agent)
 
-    # TODO：error文件中这里显示报错，且从inter0~inter35都是显示报错，因为对应的文件是空的。
-    # 加载样本
+
     def load_sample(self, i):
         sample_set = []
         try:
-            # 是否有预训练
+       
             if self.dic_exp_conf["PRETRAIN"]:
                 sample_file = open(os.path.join(self.dic_path["PATH_TO_PRETRAIN_WORK_DIRECTORY"],
                                                 "train_round", "total_samples" + ".pkl"), "rb")
-            # 是否是使用全部的样本进行训练
+           
             elif self.dic_exp_conf["AGGREGATE"]:
                 sample_file = open(os.path.join(self.dic_path["PATH_TO_AGGREGATE_SAMPLES"],
                                                 "aggregate_samples.pkl"), "rb")
-            # 什么都没有..
+            
             else:
-                # 虽然有这个文件，但是文件是空的。大概率是没写进去？
+              
                 sample_file = open(os.path.join(self.dic_path["PATH_TO_WORK_DIRECTORY"], "train_round",
                                                 "total_samples_inter_{0}".format(i) + ".pkl"), "rb")
             try:
-                while True:  # TODO:明天这个地方可以尝试调试一下
-                    sample_set += pickle.load(sample_file)  # 这里报错是因为文件是空的？
+                while True:  
+                    sample_set += pickle.load(sample_file) 
             except EOFError:
                 sample_file.close()
                 pass
@@ -85,22 +84,21 @@ class Updater:
             print("load_sample for inter {0}".format(i))
         return sample_set
 
-    # 加载带有遗忘机制的隐藏状态，根据MAX_MEMORY_LEN来控制隐藏状态的长度，实现了基于时间的隐藏状态遗忘机制
+  
     def load_hidden_states_with_forget(self): # hidden state is a list [#time, agent, # dim]
         hidden_states_set = []
         try:
             hidden_state_file = open(os.path.join(self.dic_path["PATH_TO_WORK_DIRECTORY"], "train_round",
-                                                "total_hidden_states.pkl"), "rb")  # 暂时没看到这个文件
+                                                "total_hidden_states.pkl"), "rb")  
             try:
                 while True:
-                    hidden_states_set.append(pickle.load(hidden_state_file))  # 将hidden_state_file文件中的隐藏状态数据对象加载到hidden_states_set列表
-                    hidden_states_set = np.vstack(hidden_states_set)  # 将列表中的对象[time,agent,dim],垂直堆叠成一个多维的数组，现在数组变成[N,time,agent,dim]
-                    ind_end = len(hidden_states_set)  # 得到对象的数量，N
-                    print("hidden_state_set shape: ", hidden_states_set.shape)  # 输出数组的shape
+                    hidden_states_set.append(pickle.load(hidden_state_file))  
+                    hidden_states_set = np.vstack(hidden_states_set)
+                    ind_end = len(hidden_states_set) 
+                    print("hidden_state_set shape: ", hidden_states_set.shape) 
                     if self.dic_exp_conf["PRETRAIN"] or self.dic_exp_conf["AGGREGATE"]:
                         pass
-                    else:  # 如果不是预训练或者聚合训练，就从隐藏状态数组中，最大获取长度为MAX_MEMORY_LEN的隐藏状态对象，最后将这部分隐藏状态根据sample_indexes抽取对应的样本隐藏状态
-                        # 目的是根据MAX_MEMORY_LEN限定窗口内的数据，遗忘前面的数据，只保留最近一段隐藏状态
+                    else:
                         ind_sta = max(0, ind_end - self.dic_agent_conf["MAX_MEMORY_LEN"])
                         hidden_states_after_forget = hidden_states_set[ind_sta: ind_end]
                         hidden_states_set = [np.array([hidden_states_after_forget[k] for k in self.sample_indexes])]
@@ -119,7 +117,6 @@ class Updater:
             pass
         return hidden_states_set
 
-    # 加载隐藏状态，不带有遗忘机制，隐藏状态是用来干啥的？
     def load_hidden_states(self): # hidden state is a list [#time, agent, # dim]
         hidden_states_set = []
         try:
@@ -142,7 +139,7 @@ class Updater:
             pass
         return hidden_states_set
 
-    # 加载带有遗忘机制的样本，该样本最长长度是MAX_MEMORY_LEN或者其他。
+    
     def load_sample_with_forget(self, i):
         '''
         Load sample for each intersection, with forget
@@ -162,22 +159,22 @@ class Updater:
                 sample_file = open(os.path.join(self.dic_path["PATH_TO_WORK_DIRECTORY"], "train_round",
                                                 "total_samples_inter_{0}".format(i) + ".pkl"), "rb")
             try:
-                while True:  # TODO：这里为啥是true，很有问题
+                while True:  
                     cur_round_sample_set = pickle.load(sample_file)
                     ind_end = len(cur_round_sample_set)
                     if self.dic_exp_conf["PRETRAIN"] or self.dic_exp_conf["AGGREGATE"]:
                         pass
                     else:
                         ind_sta = max(0, ind_end - self.dic_agent_conf["MAX_MEMORY_LEN"])
-                        memory_after_forget = cur_round_sample_set[ind_sta: ind_end]  # 经过遗忘后的样本集合
+                        memory_after_forget = cur_round_sample_set[ind_sta: ind_end]  
                         # print("memory size after forget:", len(memory_after_forget))
 
                         # sample the memory
                         sample_size = min(self.dic_agent_conf["SAMPLE_SIZE"], len(memory_after_forget))
-                        # 如果样本索引不是none，则从已经遗忘过的样本集合中随机采样sample_size个样本元素。
+                        
                         if self.sample_indexes is None:
                             self.sample_indexes = random.sample(range(len(memory_after_forget)), sample_size)
-                        sample_set = [memory_after_forget[k] for k in self.sample_indexes]  # 得到随机索引之后，将样本采样到sample_set中
+                        sample_set = [memory_after_forget[k] for k in self.sample_indexes]  
                         # print("memory samples number:", sample_size)
                         # print(self.sample_indexes)
                     sample_set += cur_round_sample_set
@@ -197,53 +194,53 @@ class Updater:
             print("load_sample for inter {0}".format(i))
         return sample_set
 
-    # 为智能体加载样本
+  
     def load_sample_for_agents(self):
         # TODO should be number of agents
         start_time = time.time()
         print("Start load samples at", start_time)
         if self.dic_exp_conf['MODEL_NAME'] not in ["GCN", "CoLight","Hmasac","Hmappo","MASACGraph","MAPPOGraph"]:
-            # 如果是单独模型或者是simpleDQNOne模型，则加载每个交叉路口的样本交给对应的智能体
+            
             if self.dic_traffic_env_conf["ONE_MODEL"] or self.dic_exp_conf['MODEL_NAME'] in ["SimpleDQNOne"]: # for one model
                 sample_set_all = []
-                # 对于每个交叉路口都加载带有遗忘机制的样本
+               
                 for i in range(self.dic_traffic_env_conf['NUM_INTERSECTIONS']):
                     sample_set = self.load_sample_with_forget(i)
                     sample_set_all.extend(sample_set)
-                # 为对应的智能体加载遗忘样本
+               
                 self.agents[0].prepare_Xs_Y(sample_set_all, self.dic_exp_conf)
-            # 如果不是单独模型且不是SDO，则加载不带有遗忘机制的样本
+           
             else:
                 for i in range(self.dic_traffic_env_conf['NUM_INTERSECTIONS']):
                     sample_set = self.load_sample(i)
                     self.agents[i].prepare_Xs_Y(sample_set, self.dic_exp_conf)
 
-        # 如果模型是GCN或者Colight，使用自定义的样本加载和处理流程，主要是把其他交叉口的特征向量收集起来，统一分配各所有的智能体
+      
         else:
             samples_gcn_df = None
-            # 所以下面的false是代码优化的过程吗?
-            if False : # TODO: decide multi-process
-                # 对于每一个交叉口都先载入样本，然后将样本中的state、action、reward等列提取出来，存入input列中，并对其他的交叉路口进行merge
+          
+            if False : 
+              
                 for i in range(self.dic_traffic_env_conf['NUM_INTERSECTIONS']):
                     sample_set = self.load_sample(i)
                     if len(sample_set) == 0:
                         continue
-                    # 将样本转为dataframe格式
+                   
                     samples_set_df = pd.DataFrame.from_records(sample_set, columns= ['state','action','next_state','inst_reward','reward','time','generator'])
-                    # 从df的字段中提取下列几个字段转为列表添加到input列中
+                   
                     samples_set_df['input'] = samples_set_df[['state','action','next_state','inst_reward','reward']].values.tolist()
-                    # 删除重复的不需要的字段
+                    
                     samples_set_df.drop(['state','action','next_state','inst_reward','reward'], axis=1, inplace=True)
-                    # samples_set_df['inter_id'] = i
+                  
                     if samples_gcn_df is None:
                         samples_gcn_df = samples_set_df
                     else:
-                        # print(samples_set_df[['time','generator']])，根据时间步和生成器合并不同路口的样本数据
+                     
                         samples_gcn_df = pd.merge(samples_gcn_df, samples_set_df, how='inner',
                                                   on=["generator",'time'], suffixes=('','_{0}'.format(i)))
-                # intersection_input_columns包含每个样本自己的输入特征列、其他交叉路口的特征列，这样设置是为了区分自己的特征字段和其他交叉路口的特征字段。
+              
                 intersection_input_columns = ['input'] + ['input_{0}'.format(i+1) for i in range(self.dic_traffic_env_conf['NUM_INTERSECTIONS']-1)]
-                # 将合并后的各个交叉口的特征向量转化为样本列表，然后载入智能体中
+            
                 for i in range(self.dic_traffic_env_conf['NUM_AGENTS']):
                     sample_set_list = samples_gcn_df[intersection_input_columns].values.tolist()
                     self.agents[i].prepare_Xs_Y(sample_set_list, self.dic_exp_conf)
@@ -252,7 +249,7 @@ class Updater:
                 samples_gcn_df = []
                 print("start get samples")
                 get_samples_start_time = time.time()
-                # 先加载每个交叉口的样本集sample_set，并将其特征向量存入到samples_gcn_df中。
+            
                 for i in range(self.dic_traffic_env_conf['NUM_INTERSECTIONS']):
                     sample_set = self.load_sample(i)
                     samples_set_df = pd.DataFrame.from_records(sample_set,columns= ['state','action','next_state','inst_reward','reward','time','generator'])
@@ -262,52 +259,52 @@ class Updater:
                     samples_gcn_df.append(samples_set_df['input'])
                     if i%100 == 0:
                         print("inter {0} samples_set_df.shape: ".format(i), samples_set_df.shape)
-                #  将每个交叉口的input列按列方向合并成一个Dataframe,其中每一列都是一个交叉口的样本向量。有点像邻接矩阵。
+               
                 samples_gcn_df = pd.concat(samples_gcn_df, axis=1)
                 print("samples_gcn_df.shape :", samples_gcn_df.shape)
                 print("Getting samples time: ", time.time()-get_samples_start_time)
 
                 for i in range(self.dic_traffic_env_conf['NUM_AGENTS']):
-                    sample_set_list = samples_gcn_df.values.tolist()  # 直接将一个dataframe的表转化成样本列表。
+                    sample_set_list = samples_gcn_df.values.tolist()  
                     self.agents[i].prepare_Xs_Y(sample_set_list, self.dic_exp_conf)
 
-            else:  # TODO：图主要是修改这部分，也就是这部分会占用特别大的内存空间，可以尝试直接删除前面的样本
+            else: 
                 samples_gcn_df = []
                 print("start get samples")
                 get_samples_start_time = time.time()
                 for i in range(self.dic_traffic_env_conf['NUM_INTERSECTIONS']):
-                    sample_set = self.load_sample(i)  # 这里得到交叉口i的样本，共是360×4=1440条，应该是考虑到generator的大小。
+                    sample_set = self.load_sample(i)  
                     samples_set_df = pd.DataFrame.from_records(sample_set,columns= ['state','action','next_state','inst_reward','reward','time','generator'])
-                    samples_set_df['input'] = samples_set_df[['state','action','next_state','inst_reward','reward']].values.tolist() #新加一个input,由原来的部分组成
-                    samples_set_df.drop(['state','action','next_state','inst_reward','reward','time','generator'], axis=1, inplace=True) # 删除部分列
-                    # samples_set_df['inter_id'] = i，与上一个不同，上一个是直接合并
+                    samples_set_df['input'] = samples_set_df[['state','action','next_state','inst_reward','reward']].values.tolist() 
+                    samples_set_df.drop(['state','action','next_state','inst_reward','reward','time','generator'], axis=1, inplace=True) 
+                 
                     samples_gcn_df.append(samples_set_df['input'])
                     if i%100 == 0:
                         print("inter {0} samples_set_df.shape: ".format(i), samples_set_df.shape)
-                samples_gcn_df = pd.concat(samples_gcn_df, axis=1)  # 将36个路口的1440个样本进行拼接，拼成大小为(1440,36)
+                samples_gcn_df = pd.concat(samples_gcn_df, axis=1)  
                 print("samples_gcn_df.shape :", samples_gcn_df.shape)
                 print("Getting samples time: ", time.time()-get_samples_start_time)
 
                 for i in range(self.dic_traffic_env_conf['NUM_AGENTS']):
-                    sample_set_list = samples_gcn_df.values.tolist()  # 将原本的df格式转化为列表，dim(1440,36)表示36个路口的state，next_state，...等
+                    sample_set_list = samples_gcn_df.values.tolist()  
                     self.agents[i].prepare_Xs_Y(sample_set_list, self.dic_exp_conf)
 
         print("------------------Load samples time: ", time.time() - start_time)
 
-    # 这个函数主要是用来简化上面的load_sample_for_agents的代码的，
+   
     def sample_set_to_sample_gcn_df(self, sample_set):
         print("make results")
         samples_set_df = pd.DataFrame.from_records(sample_set, columns=['state', 'action', 'next_state', 'inst_reward', 'reward', 'time', 'generator'])
-        samples_set_df = samples_set_df.set_index(['time', 'generator'])  # 设置时间和生成器作为索引
+        samples_set_df = samples_set_df.set_index(['time', 'generator']) 
         samples_set_df['input'] = samples_set_df[['state','action','next_state','inst_reward','reward']].values.tolist()
         samples_set_df.drop(['state','action','next_state','inst_reward','reward'], axis=1, inplace=True)
-        self.sample_set_list.append(samples_set_df)  # 给属性赋值。
+        self.sample_set_list.append(samples_set_df)  
 
-    # 更新网络参数
+
     def update_network(self, i):
         print('update agent %d' % i)
         self.agents[i].train_network(self.dic_exp_conf)
-        # 如果只有一个单模型，而不是每个路口都存在一个模型
+      
         if self.dic_traffic_env_conf["ONE_MODEL"]:
             if self.dic_exp_conf["PRETRAIN"]:
                 self.agents[i].q_network.save(os.path.join(self.dic_path["PATH_TO_PRETRAIN_MODEL"],
@@ -340,7 +337,7 @@ class Updater:
             else:
                 self.agents[i].save_network("round_{0}_inter_{1}".format(self.cnt_round, self.agents[i].intersection_id))
 
-    # 更新每个智能体的网络参数，调用了update_network方法
+
     def update_network_for_agents(self):
         if self.dic_traffic_env_conf["ONE_MODEL"]:
             self.update_network(0)
@@ -352,7 +349,7 @@ class Updater:
 
 #
 # if __name__ == "__main__":
-#     # 一些配置信息
+#
 #     dic_agent_conf = {
 #     "PRIORITY": True,
 #     "nan_code":True,
