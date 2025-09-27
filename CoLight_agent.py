@@ -64,39 +64,38 @@ class CoLightAgent(Agent):
         -4. self.num_actions
         """
         super(CoLightAgent, self).__init__(
-            dic_agent_conf, dic_traffic_env_conf, dic_path, intersection_id)  # 传入配置文件
+            dic_agent_conf, dic_traffic_env_conf, dic_path, intersection_id)  
 
         self.att_regulatization = dic_agent_conf['att_regularization']
-        self.CNN_layers = dic_agent_conf['CNN_layers']  # 卷积网络层数
+        self.CNN_layers = dic_agent_conf['CNN_layers']  
 
         # TODO: n_agents should pass as parameter
-        self.num_agents = dic_traffic_env_conf['NUM_INTERSECTIONS']  # 36
+        self.num_agents = dic_traffic_env_conf['NUM_INTERSECTIONS']  
         self.num_neighbors = min(dic_traffic_env_conf['TOP_K_ADJACENCY'], self.num_agents)
-        self.vec = np.zeros((1, self.num_neighbors))  # 一个1×5的向量
+        self.vec = np.zeros((1, self.num_neighbors))  
         self.vec[0][0] = 1
 
         self.num_actions = len(
-            self.dic_traffic_env_conf["PHASE"][self.dic_traffic_env_conf['SIMULATOR_TYPE']])  # 根据相位个数确定动作编号
-        self.num_lanes = np.sum(np.array(list(self.dic_traffic_env_conf["LANE_NUM"].values())))  # 车道数量为3
-        self.len_feature = self.compute_len_feature()  # 一个计算特征长度的方法
-        self.memory = self.build_memory()  # 构建经验池
+            self.dic_traffic_env_conf["PHASE"][self.dic_traffic_env_conf['SIMULATOR_TYPE']])  
+        self.num_lanes = np.sum(np.array(list(self.dic_traffic_env_conf["LANE_NUM"].values())))  
+        self.len_feature = self.compute_len_feature()  
+        self.memory = self.build_memory() 
 
         if cnt_round == 0:
             # initialization
-            self.q_network = self.build_network()  # 首先在第一轮次初始化网络
-            if os.listdir(self.dic_path["PATH_TO_MODEL"]):  # 这里的path_to_model就是在model的anon的那个路径
+            self.q_network = self.build_network()  
+            if os.listdir(self.dic_path["PATH_TO_MODEL"]): 
                 self.q_network.load_weights(
                     os.path.join(self.dic_path["PATH_TO_MODEL"], "round_0_inter_{0}.h5".format(intersection_id)),
-                    by_name=True)  # 加载网络的权重？
+                    by_name=True)  
             self.q_network_bar = self.build_network_from_copy(self.q_network)
         else:
-            # 不太懂里面的bar是啥？
+           
             try:
                 if best_round:
                     # use model pool
                     self.load_network(
-                        "round_{0}_inter_{1}".format(best_round, self.intersection_id))  # 将最佳轮次的模型参数从文件中提取出来
-
+                        "round_{0}_inter_{1}".format(best_round, self.intersection_id)) 
                     if bar_round and bar_round != best_round and cnt_round > 10:
                         # load q_bar network from model pool
                         self.load_network_bar("round_{0}_inter_{1}".format(bar_round, self.intersection_id))
@@ -137,7 +136,7 @@ class CoLightAgent(Agent):
             except:
                 print("fail to load network, current round: {0}".format(cnt_round))
 
-        # decay the epsilon，贪婪度的衰减
+   
         """
         "EPSILON": 0.8,
         "EPSILON_DECAY": 0.95,
@@ -152,21 +151,20 @@ class CoLightAgent(Agent):
             print('round%d, EPSILON:%.4f' % (cnt_round, self.dic_agent_conf["EPSILON"]))
         else:
             decayed_epsilon = self.dic_agent_conf["EPSILON"] * pow(self.dic_agent_conf["EPSILON_DECAY"],
-                                                                   cnt_round)  # 贪婪系数的随着轮次逐步衰减
-            self.dic_agent_conf["EPSILON"] = max(decayed_epsilon, self.dic_agent_conf["MIN_EPSILON"])  # 贪婪系数最低是0.2
-
-    # 计算特征长度，上面的计算结果为20，应该是8+4*3=20，这里主要是计算状态（当前相位和每个车道上车辆数）的维度信息
+                                                                   cnt_round) 
+            self.dic_agent_conf["EPSILON"] = max(decayed_epsilon, self.dic_agent_conf["MIN_EPSILON"])  
+   
     def compute_len_feature(self):
         from functools import reduce
         len_feature = tuple()
-        for feature_name in self.dic_traffic_env_conf["LIST_STATE_FEATURE"]:  # 从状态中进行索引
+        for feature_name in self.dic_traffic_env_conf["LIST_STATE_FEATURE"]:  
             if "adjacency" in feature_name:
                 continue
             elif "phase" in feature_name:
-                len_feature += self.dic_traffic_env_conf["DIC_FEATURE_DIM"]["D_" + feature_name.upper()]  # tuple类型 (8,)
-            elif feature_name == "lane_num_vehicle":  # 这里lane_num_vehicle为4，是四个方向上的车辆数
+                len_feature += self.dic_traffic_env_conf["DIC_FEATURE_DIM"]["D_" + feature_name.upper()] 
+            elif feature_name == "lane_num_vehicle": 
                 len_feature += (self.dic_traffic_env_conf["DIC_FEATURE_DIM"]["D_" + feature_name.upper()][
-                                    0] * self.num_lanes,)  # tuple类型 (4,)
+                                    0] * self.num_lanes,) 
         return sum(len_feature)
 
     """
@@ -176,7 +174,7 @@ class CoLightAgent(Agent):
     3. q network
     """
 
-    # 这里传进来的layers都是[32,32]
+    
     def MLP(self, In_0, layers=[128, 128]):
         """
         Currently, the MLP layer
@@ -192,7 +190,7 @@ class CoLightAgent(Agent):
                 h = Dense(layer_size, activation='relu', kernel_initializer='random_normal',
                           name='Dense_embed_%d' % layer_index)(h)
 
-        return h  # 输出的维度是(?,36,32)
+        return h  
 
     # feature(?,36,32)，In[1](?,36,5,36)，l=5，d=32，dv=32，dout=32，nv=1，suffix=0
     def MultiHeadsAttModel(self, In_agent, In_neighbor, l=5, d=128, dv=16, dout=128, nv=8, suffix=-1):
@@ -208,28 +206,27 @@ class CoLightAgent(Agent):
         print("In_agent.shape,In_neighbor.shape,l, d, dv, dout, nv", In_agent.shape, In_neighbor.shape, l, d, dv, dout,
               nv)
         # [batch,agent, dim]->[batch,agent,1,dim]
-        agent_repr = Reshape((self.num_agents, 1, d))(In_agent)  # 维度(?,36,1,32)
+        agent_repr = Reshape((self.num_agents, 1, d))(In_agent)  
 
         """
         neighbor repr
         """
         # [batch,agent,dim]->(reshape)[batch,1,agent,dim]->(tile)[batch,agent,agent,dim]
-        neighbor_repr = RepeatVector3D(self.num_agents)(In_agent)  # 维度(?,36,36,32)，功能是每个路口，都有36个路口的特征信息。
+        neighbor_repr = RepeatVector3D(self.num_agents)(In_agent)  
         print("neighbor_repr.shape", neighbor_repr.shape)
         # [batch,agent,neighbor,agent]x[batch,agent,agent,dim]->[batch,agent,neighbor,dim]
         neighbor_repr = Lambda(lambda x: K.batch_dot(x[0], x[1]))(
-            [In_neighbor, neighbor_repr])  # 维度变成(?,36,5,32)表示每个路口的周边几个路口（含自身）的特征
+            [In_neighbor, neighbor_repr])  
         print("neighbor_repr.shape", neighbor_repr.shape)
         """
         attention computation
         """
-        # multi-head
-        # [batch,agent,1,dim]->[batch,agent,1,dv*nv]，映射过程中就乘上了对应的权重矩阵了
+        
         agent_repr_head = Dense(dv * nv, activation='relu', kernel_initializer='random_normal',
-                                name='agent_repr_%d' % suffix)(agent_repr)  # 维度(?,36,1,32)
+                                name='agent_repr_%d' % suffix)(agent_repr)  
         # [batch,agent,1,dv,nv]->[batch,agent,nv,1,dv]
-        agent_repr_head = Reshape((self.num_agents, 1, dv, nv))(agent_repr_head)  # 维度(?,36,1,32,1)
-        agent_repr_head = Lambda(lambda x: K.permute_dimensions(x, (0, 1, 4, 2, 3)))(agent_repr_head)  # 维度(?,36,1,1,32)
+        agent_repr_head = Reshape((self.num_agents, 1, dv, nv))(agent_repr_head) 
+        agent_repr_head = Lambda(lambda x: K.permute_dimensions(x, (0, 1, 4, 2, 3)))(agent_repr_head)  
         # agent_repr_head=Lambda(lambda x:K.permute_dimensions(K.reshape(x,(-1,self.num_agents,1,dv,nv)),(0,1,4,2,3)))(agent_repr_head)
         # [batch,agent,neighbor,dim]->[batch,agent,neighbor,dv*nv]
 
@@ -240,31 +237,29 @@ class CoLightAgent(Agent):
         print("self.num_agents,self.num_neighbors,dv,nv", self.num_agents, self.num_neighbors, dv, nv)
         neighbor_repr_head = Reshape((self.num_agents, self.num_neighbors, dv, nv))(neighbor_repr_head)  # (?,36,5,32,1)
         neighbor_repr_head = Lambda(lambda x: K.permute_dimensions(x, (0, 1, 4, 2, 3)))(
-            neighbor_repr_head)  # (?,36,1,5,32)
-        # neighbor_repr_head=Lambda(lambda x:K.permute_dimensions(K.reshape(x,(-1,self.num_agents,self.num_neighbors,dv,nv)),(0,1,4,2,3)))(neighbor_repr_head)
-        # [batch,agent,nv,1,dv]x[batch,agent,nv,neighbor,dv]->[batch,agent,nv,1,neighbor]  (?,36,1,1,32)×(?,36,1,5,32)-> (?,36,1,1,5)
-        #
+            neighbor_repr_head)  
+       
         att = Lambda(lambda x: K.softmax(K.batch_dot(x[0], x[1], axes=[4, 4])))(
-            [agent_repr_head, neighbor_repr_head])  # agent_repr_head, neighbor_repr_head维度:(?,36,1,1,32) (?,36,1,5,32)
-        # [batch,agent,nv,1,neighbor]->[batch,agent,nv,neighbor]
-        att_record = Reshape((self.num_agents, nv, self.num_neighbors))(att)  # dim(?,36,1,5) ,得到的是每个路口与（周边四个加上自身的）的系数。
+            [agent_repr_head, neighbor_repr_head])  
+        
+        att_record = Reshape((self.num_agents, nv, self.num_neighbors))(att)  
 
-        # self embedding again
+        
         neighbor_hidden_repr_head = Dense(dv * nv, activation='relu', kernel_initializer='random_normal',
-                                          name='neighbor_hidden_repr_%d' % suffix)(neighbor_repr)  # dim(?,36,1,5,32)
+                                          name='neighbor_hidden_repr_%d' % suffix)(neighbor_repr)  
         neighbor_hidden_repr_head = Reshape((self.num_agents, self.num_neighbors, dv, nv))(
-            neighbor_hidden_repr_head)  # dim(?,36,5,32,1)
+            neighbor_hidden_repr_head)  
         neighbor_hidden_repr_head = Lambda(lambda x: K.permute_dimensions(x, (0, 1, 4, 2, 3)))(
-            neighbor_hidden_repr_head)  # dim(?,36,1,5,32)
+            neighbor_hidden_repr_head)  
         out = Lambda(lambda x: K.mean(K.batch_dot(x[0], x[1]), axis=2))(
-            [att, neighbor_hidden_repr_head])  # dim(?,36,1,32)，表示五个路口自身系数乘上路口自身的特征向量，
-        out = Reshape((self.num_agents, dv))(out)  # dim(?,36,32)
+            [att, neighbor_hidden_repr_head]) 
+        out = Reshape((self.num_agents, dv))(out) 
         out = Dense(dout, activation="relu", kernel_initializer='random_normal', name='MLP_after_relation_%d' % suffix)(
-            out)  # dim(?,36,32)
+            out)  
         return out, att_record
 
     def adjacency_index2matrix(self, adjacency_index):
-        # adjacency_index(the nearest K neighbors):[1,2,3]
+        
         """
         if in 1*6 aterial and
             - the 0th intersection,then the adjacency_index should be [0,1,2,3]
@@ -272,25 +267,23 @@ class CoLightAgent(Agent):
             - the 2nd intersection, then adj [2,0,1,3]
 
         """
-        # [batch,agents,neighbors]
+      
         adjacency_index_new = np.sort(adjacency_index, axis=-1)
         l = to_categorical(adjacency_index_new, num_classes=self.num_agents)
         return l
 
-    # 动作预测，返回动作和注意力得分
+   
     def action_att_predict(self, state, total_features=[], total_adjs=[], bar=False):
-        # state:[batch,agent,features and adj]
-        # return:act:[batch,agent],att:[batch,layers,agent,head,neighbors]
-        # state是标准的四件套，即cur_phase,lane_num_v,adjacency_matrix（这个里面是邻接路口的编号，也就是索引）,adjacency_matrix_lane（邻接车道的编号）,
-        batch_size = len(state)  # 传进来的state维度是(1,36)
+        
+        batch_size = len(state)  
         if total_features == [] and total_adjs == []:
             total_features, total_adjs = list(), list()
             for i in range(batch_size):
-                feature = []  # 大小是20
-                adj = []  # 大小是5
+                feature = []  
+                adj = []  
                 for j in range(self.num_agents):
-                    observation = []  # 观察值的维度是20（包含当前相位和车辆数） 前8位表示8个车道是否可通行，后12表示各路口车辆数
-                    for feature_name in self.dic_traffic_env_conf["LIST_STATE_FEATURE"]: # 包含['cur_phase', 'lane_num_vehicle', 'adjacency_matrix', 'adjacency_matrix_lane']
+                    observation = []  
+                    for feature_name in self.dic_traffic_env_conf["LIST_STATE_FEATURE"]: 
                         if 'adjacency' in feature_name:
                             continue
                         if feature_name == "cur_phase":
@@ -303,30 +296,30 @@ class CoLightAgent(Agent):
                                 observation.extend(state[i][j][feature_name])
                         elif feature_name == "lane_num_vehicle":
                             observation.extend(state[i][j][feature_name])
-                    feature.append(observation)  # feature的维度是(36,20)，也就是每个路口的相位以及车辆数。
-                    adj.append(state[i][j]['adjacency_matrix'])  # adj存放36个路口的邻接路口维度变成(36,5)
-                total_features.append(feature)  # total_features就是加了batch_size的，维度变成(1,36,20)
-                total_adjs.append(adj)#加了batch_size的，维度变成(1,36,5)
+                    feature.append(observation) 
+                    adj.append(state[i][j]['adjacency_matrix'])  
+                total_features.append(feature)  
+                total_adjs.append(adj)
             # feature:[agents,feature]
-            total_features = np.reshape(np.array(total_features), [batch_size, self.num_agents, -1])  # 维度改成(?,36,20)
-            total_adjs = self.adjacency_index2matrix(np.array(total_adjs))  # 维度变成(?,36,5,36),也就是将原来的邻接路口用one-hot编码表示。
+            total_features = np.reshape(np.array(total_features), [batch_size, self.num_agents, -1])  
+            total_adjs = self.adjacency_index2matrix(np.array(total_adjs))  
             # adj:[agent,neighbors]
         if bar:
             all_output = self.q_network_bar.predict([total_features, total_adjs])
         else:
-            all_output = self.q_network.predict([total_features, total_adjs])  # 这里是使用q网络进行输出，输出的维度是
+            all_output = self.q_network.predict([total_features, total_adjs])  
         action, attention = all_output[0], all_output[1]
 
         # out: [batch,agent,action], att:[batch,layers,agent,head,neighbors]
         if len(action) > 1:
-            return total_features, total_adjs, action, attention  # 这里主要是在prepare_Xs_Y中执行该函数时返回。
+            return total_features, total_adjs, action, attention  
 
         # [batch,agent,1]
-        max_action = np.expand_dims(np.argmax(action, axis=-1), axis=-1) # 获得最大值的索引
+        max_action = np.expand_dims(np.argmax(action, axis=-1), axis=-1) 
         random_action = np.reshape(np.random.randint(self.num_actions, size=1 * self.num_agents),
                                    (1, self.num_agents, 1))
         # [batch,agent,2]
-        possible_action = np.concatenate([max_action, random_action], axis=-1)  # 将Q(s,a)最大的action和随机的action拼在一起
+        possible_action = np.concatenate([max_action, random_action], axis=-1)  
         selection = np.random.choice(
             [0, 1],
             size=batch_size * self.num_agents,
@@ -336,7 +329,7 @@ class CoLightAgent(Agent):
         act = np.reshape(act, (batch_size, self.num_agents))
         return act, attention
 
-    # 这个函数是被用在generator中，用来选择单个智能体i的动作
+    
     def choose_action(self, count, state):
 
         '''
@@ -344,38 +337,34 @@ class CoLightAgent(Agent):
         -input: state: [batch,agent,feature]  adj: [batch,agent,neighbors,agents]
         -output: out: [batch,agent,action], att:[batch,layers,agent,head,neighbors]
         '''
-        act, attention = self.action_att_predict([state])  # 原本传进来的state维度是(36,)，经过[]之后，变成（1,36）
+        act, attention = self.action_att_predict([state])  
         return act[0], attention[0]
 
-    # 为智能体加载样本，并更新q值。出现在updater.py文件中
     def prepare_Xs_Y(self, memory, dic_exp_conf):
-        """
-        memory：(1440,36)表示36个路口的state，next_state，...等
-        """
-        ind_end = len(memory)  # ind_end为1440
+        
+        ind_end = len(memory)  
         print("memory size before forget: {0}".format(ind_end))
         # use all the samples to pretrain, i.e., without forgetting
         if dic_exp_conf["PRETRAIN"] or dic_exp_conf["AGGREGATE"]:
-            sample_slice = memory  # sample_slice表示样本，大小为1440，因为是一个路口的
+            sample_slice = memory  
         # forget
         else:
-            ind_sta = max(0, ind_end - self.dic_agent_conf["MAX_MEMORY_LEN"])  # ind_sta为0，MAX_MEMORY_LEN=10000
-            memory_after_forget = memory[ind_sta: ind_end]  # 初始大小也是1440
+            ind_sta = max(0, ind_end - self.dic_agent_conf["MAX_MEMORY_LEN"])  
+            memory_after_forget = memory[ind_sta: ind_end]  
             print("memory size after forget:", len(memory_after_forget))
 
             # sample the memory
             sample_size = min(self.dic_agent_conf["SAMPLE_SIZE"],
-                              len(memory_after_forget))  # SAMPLE_SIZE=1000， 样本大小为1000
-            sample_slice = random.sample(memory_after_forget, sample_size)  # 从memory中随机抽取1000个样本。
+                              len(memory_after_forget))  
+            sample_slice = random.sample(memory_after_forget, sample_size)  
             print("memory samples number:", sample_size)
 
-        # 下面的列表最后的维度为1000*36
+        
         _state = []
         _next_state = []
         _action = []
         _reward = []
 
-        # 将1000个样本的几个属性都分开存储
         for i in range(len(sample_slice)):
             _state.append([])
             _next_state.append([])
@@ -387,83 +376,21 @@ class CoLightAgent(Agent):
                 _next_state[i].append(next_state)
                 _action[i].append(action)
                 _reward[i].append(reward)
-#___________________________________________________________________________
-        intersection_dic = {
-            0: [1, 4],
-            1: [0, 2, 5],
-            2: [1, 3, 6],
-            3: [2, 7],
-            4: [0, 5, 8],
-            5: [1, 4, 6, 9],
-            6: [2, 5, 7, 10],
-            7: [3, 6, 11],
-            8: [4, 9, 12],
-            9: [5, 8, 10, 13],
-            10: [6, 9, 11, 14],
-            11: [7, 10, 15],
-            12: [8, 13],
-            13: [9, 12, 14],
-            14: [10, 13, 15],
-            15: [11, 14],
-        }
-        print(len(state))
-        # # random_indices = torch.tensor([6,1,13,4,8,11,15])
-        random_indices = torch.tensor([6])
-        for state in _state:
-            for j in random_indices:
-                tihuan = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-                lenth = len(intersection_dic[int(j)])
-                result = []
-                for k in intersection_dic[int(j)]:
-                    for l in range(12):
-                        tihuan[l] += state[k]['lane_num_vehicle'][l]
-                for num in tihuan:
-                    quotient = num / lenth
-                    rounded_up = math.ceil(quotient)
-                    result.append(rounded_up)
 
-                state[j]['lane_num_vehicle'] = result
-
-        for next_state in _next_state:
-            for j in random_indices:
-                tihuan = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-                lenth = len(intersection_dic[int(j)])
-                result = []
-                for k in intersection_dic[int(j)]:
-                    for l in range(12):
-                        tihuan[l] += next_state[k]['lane_num_vehicle'][l]
-                for num in tihuan:
-                    quotient = num / lenth
-                    rounded_up = math.ceil(quotient)
-                    result.append(rounded_up)
-
-                next_state[j]['lane_num_vehicle'] = result
-        for reward in _reward:
-            for j in random_indices:
-                number = 0
-                lenth = len(intersection_dic[int(j)])
-                for k in intersection_dic[int(j)]:
-                    number += reward[k]
-                number /= lenth
-                number = round(number, 3)
-                reward[j] = number
-#___________________________________________________________________________________________
-        # target: [#agents,#samples,#num_actions]，根据状态得到特征和q值
-        # 其中features的维度是(1000,36,20)，adjs的维度(1000,36,5,36)，q_values的维度是(1000,36,4)，attention的维度是(1000,1,36,1,5)
         _features, _adjs, q_values, _ = self.action_att_predict(_state)
-        _next_features, _next_adjs, _, attention = self.action_att_predict(_next_state)  # 得到下一状态的特征，邻接路口、车道（基本不变）
+        _next_features, _next_adjs, _, attention = self.action_att_predict(_next_state)  
         # target_q_values:[batch,agent,action]
         _, _, target_q_values, _ = self.action_att_predict(
             _next_state,
             total_features=_next_features,
             total_adjs=_next_adjs,
-            bar=True)  # 计算q_network_bar的q值
-        # 更新Q表
+            bar=True)  
+ 
         for i in range(len(sample_slice)):
             for j in range(self.num_agents):
                 q_values[i][j][_action[i][j]] = _reward[i][j] / self.dic_agent_conf["NORMAL_FACTOR"] + \
                                                 self.dic_agent_conf["GAMMA"] * \
-                                                np.max(target_q_values[i][j])  # 这是整个q(s,a)值的更新公式！！
+                                                np.max(target_q_values[i][j])  
 
         # self.Xs should be: [#agents,#samples,#features+#]
         self.Xs = [_features, _adjs]  # dim(dim(1000,36,20),dim(1000,36,5,36))
@@ -483,8 +410,8 @@ class CoLightAgent(Agent):
             # CNN_layers=[[32,32]],#[[4,32],[4,32]],
             # CNN_heads=[1],#[8,8],
             Output_layers=[]):
-        CNN_layers = self.CNN_layers  # 维度是(1,2)
-        CNN_heads = [1] * len(CNN_layers)  # 维度是(1,)
+        CNN_layers = self.CNN_layers  
+        CNN_heads = [1] * len(CNN_layers)  
         """
         layer definition
         """
@@ -498,9 +425,9 @@ class CoLightAgent(Agent):
         """
         # In: [batch,agent,feature]
         # In: [batch,agent,neighbors,agents]
-        In.append(Input(shape=[self.num_agents, self.len_feature], name="feature"))  # 输入的维度(?,36,20)iiv
+        In.append(Input(shape=[self.num_agents, self.len_feature], name="feature"))  
         In.append(Input(shape=(self.num_agents, self.num_neighbors, self.num_agents),
-                        name="adjacency_matrix"))  # 输入的维度(?,36,5,36)
+                        name="adjacency_matrix"))  
 
         Input_end_time = time.time()
         """
@@ -508,7 +435,7 @@ class CoLightAgent(Agent):
         -input: [batch,agent,feature_dim]
         -outpout: [#agent,batch,128]
         """
-        feature = self.MLP(In[0], MLP_layers)  # 输出的维度是(?,36,32)
+        feature = self.MLP(In[0], MLP_layers)  
 
         Embedding_end_time = time.time()
 
@@ -529,7 +456,7 @@ class CoLightAgent(Agent):
                     dout=CNN_layer_size[1],
                     nv=CNN_heads[CNN_layer_index],
                     suffix=CNN_layer_index
-                )  # feature(?,36,32)，In[1](?,36,5,36)，l=5，d=32，dv=32，dout=32，nv=1，suffix=0，输出的h、att_record维度：dim(?,36,32)，dim(?,36,1,5)
+                )  
             else:
                 h, att_record = self.MultiHeadsAttModel(
                     h,
@@ -593,7 +520,7 @@ class CoLightAgent(Agent):
             epochs = 1000
         else:
             epochs = self.dic_agent_conf["EPOCHS"]  # epchs=100
-        batch_size = min(self.dic_agent_conf["BATCH_SIZE"], len(self.Y))  # batch_size为20
+        batch_size = min(self.dic_agent_conf["BATCH_SIZE"], len(self.Y))  
 
         early_stopping = EarlyStopping(
             monitor='val_loss', patience=self.dic_agent_conf["PATIENCE"], verbose=0, mode='min')
@@ -605,8 +532,7 @@ class CoLightAgent(Agent):
                                   shuffle=False,
                                   verbose=2, validation_split=0.3,
                                   callbacks=[early_stopping, TensorBoard(
-                                      log_dir='./temp.tensorboard')])  # Xs:dim(dim(1000,36,20),dim(1000,36,5,36)),Y_total:dim(dim(1000,36,4),dim(1000,1,36,1,5))
-
+                                      log_dir='./temp.tensorboard')]) 
     def build_network_from_copy(self, network_copy):
 
         '''Initialize a Q network from a copy'''
