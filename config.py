@@ -21,7 +21,7 @@ from lit_agent import LitAgent
 from anon_env import AnonEnv
 from baseline.sliding_formula_agent import SlidingFormulaAgent
 
-# 整个项目的配置文件，更改这个文件的参数时，一定要十分小心。
+
 DIC_SLIDINGFORMULA_AGENT_CONF = { 
     "DAY_TIME": 3600, 
     "UPDATE_PERIOD": 300, 
@@ -335,7 +335,7 @@ DIC_COLIGHT_AGENT_CONF = {
     "TRAFFIC_FILE": "cross.2phases_rou01_equal_450.xml",
 }
 
-# TODO:这里是否需要写配置文件还有待商榷，暂时是没用到里面的内容
+
 DIC_HMASAC_AGENT_CONF = {
     "CNN_layers":[[32,32]],#,[32,32],[32,32],[32,32]],
     "att_regularization":False,
@@ -347,7 +347,7 @@ DIC_HMASAC_AGENT_CONF = {
     "UPDATE_Q_BAR_FREQ": 5,
     "UPDATE_Q_BAR_EVERY_C_ROUND": False,
     "GAMMA": 0.8,
-    "MAX_MEMORY_LEN": 10000,  # TODO：如果内存不够大的话，可以从这个地方去限制
+    "MAX_MEMORY_LEN": 10000,  
     "PATIENCE": 10,
     "D_DENSE": 20,
     "N_LAYER": 2,
@@ -372,7 +372,7 @@ DIC_HMAPPO_AGENT_CONF = {
     "UPDATE_Q_BAR_FREQ": 5,
     "UPDATE_Q_BAR_EVERY_C_ROUND": False,
     "GAMMA": 0.8,
-    "MAX_MEMORY_LEN": 10000,  # TODO：如果内存不够大的话，可以从这个地方去限制
+    "MAX_MEMORY_LEN": 10000,
     "PATIENCE": 10,
     "D_DENSE": 20,
     "N_LAYER": 2,
@@ -510,7 +510,7 @@ DIC_MASACGRAPH_AGENT_CONF = {
     "UPDATE_Q_BAR_FREQ": 5,
     "UPDATE_Q_BAR_EVERY_C_ROUND": False,
     "GAMMA": 0.8,
-    "MAX_MEMORY_LEN": 10000,  # TODO：如果内存不够大的话，可以从这个地方去限制
+    "MAX_MEMORY_LEN": 10000,  
     "PATIENCE": 10,
     "D_DENSE": 20,
     "N_LAYER": 2,
@@ -535,7 +535,7 @@ DIC_MAPPOGRAPH_AGENT_CONF = {
     "UPDATE_Q_BAR_FREQ": 5,
     "UPDATE_Q_BAR_EVERY_C_ROUND": False,
     "GAMMA": 0.8,
-    "MAX_MEMORY_LEN": 10000,  # TODO：如果内存不够大的话，可以从这个地方去限制
+    "MAX_MEMORY_LEN": 10000,  
     "PATIENCE": 10,
     "D_DENSE": 20,
     "N_LAYER": 2,
@@ -569,8 +569,6 @@ DIC_AGENTS = {
     "Formula": FormulaAgent,
     "Random": RandomAgent,
     'CoLight': CoLightAgent,
-    'DCoLight': DCoLightAgent, # 新加的动态持续时间colight
-      #'GCN': GCNAgent,
     'SimpleDQNOne': SimpleDQNOneAgent,
     "MaxPressure": MaxPressureAgent,
     "Lit":LitAgent,
